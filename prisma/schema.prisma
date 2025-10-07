@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id        String   @id @default(cuid())
+    email     String   @unique
+    username  String   @unique
+    password  String
+    firstName String?
+    lastName  String?
+    avatar    String?
+    isActive  Boolean  @default(true)
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relations
+    tasks     Task[]
+    tracks    LearningTrack[]
+    sessions  Session[]
+    settings  UserSettings?
+    analytics DailyAnalytics[]
+
+    @@map("users")
+}
+
+model LearningTrack {
+    id          String   @id @default(cuid())
+    name        String
+    description String?
+    color       String   @default("#3B82F6")
+    icon        String?
+    userId      String
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+
+    // Relations
+    user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+    tasks Task[]
+
+    @@map("learning_tracks")
+}
+
+model Task {
+    id                 String     @id @default(cuid())
+    title              String
+    description        String?
+    status             TaskStatus @default(TODO)
+    priority           Priority   @default(MEDIUM)
+    estimatedPomodoros Int        @default(1)
+    completedPomodoros Int        @default(0)
+    userId             String
+    trackId            String?
+    createdAt          DateTime   @default(now())
+    updatedAt          DateTime   @updatedAt
+
+    // Relations
+    user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    track    LearningTrack? @relation(fields: [trackId], references: [id], onDelete: SetNull)
+    sessions Session[]
+
+    @@map("tasks")
+}
+
+model Session {
+    id          String      @id @default(cuid())
+    type        SessionType
+    duration    Int // Duration in minutes
+    startTime   DateTime
+    endTime     DateTime?
+    isCompleted Boolean     @default(false)
+    userId      String
+    taskId      String?
+    createdAt   DateTime    @default(now())
+    updatedAt   DateTime    @updatedAt
+
+    // Relations
+    user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+    task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+    @@map("sessions")
+}
+
+model UserSettings {
+    id                   String   @id @default(cuid())
+    userId               String   @unique
+    pomodoroDuration     Int      @default(25) // minutes
+    shortBreakDuration   Int      @default(5) // minutes
+    longBreakDuration    Int      @default(15) // minutes
+    longBreakInterval    Int      @default(4) // pomodoros
+    autoStartBreaks      Boolean  @default(false)
+    autoStartPomodoros   Boolean  @default(false)
+    soundEnabled         Boolean  @default(true)
+    desktopNotifications Boolean  @default(true)
+    emailNotifications   Boolean  @default(false)
+    theme                String   @default("light")
+    language             String   @default("en")
+    createdAt            DateTime @default(now())
+    updatedAt            DateTime @updatedAt
+
+    // Relations
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("user_settings")
+}
+
+model DailyAnalytics {
+    id                String   @id @default(cuid())
+    userId            String
+    date              DateTime @db.Date
+    totalPomodoros    Int      @default(0)
+    totalFocusTime    Int      @default(0) // minutes
+    totalBreakTime    Int      @default(0) // minutes
+    completedTasks    Int      @default(0)
+    streak            Int      @default(0)
+    productivityScore Float    @default(0.0)
+    createdAt         DateTime @default(now())
+    updatedAt         DateTime @updatedAt
+
+    // Relations
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, date])
+    @@map("daily_analytics")
+}
+
+// Enums
+enum TaskStatus {
+    TODO
+    IN_PROGRESS
+    COMPLETED
+    CANCELLED
+}
+
+enum Priority {
+    LOW
+    MEDIUM
+    HIGH
+    URGENT
+}
+
+enum SessionType {
+    POMODORO
+    SHORT_BREAK
+    LONG_BREAK
+}
